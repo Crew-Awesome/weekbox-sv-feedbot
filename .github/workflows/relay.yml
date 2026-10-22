@@ -55,6 +55,6 @@ jobs:
             mkdir -p ../weekbox-relay-state/.relay-state
             cp .relay-state/state.json ../weekbox-relay-state/.relay-state/state.json
           fi
-          git -C ../weekbox-relay-state add .relay-state/state.json
+          git -C ../weekbox-relay-state add -f .relay-state/state.json
           git -C ../weekbox-relay-state commit -m "chore: update relay state" || true
           git -C ../weekbox-relay-state push origin HEAD:relay-state
