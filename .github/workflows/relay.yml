@@ -57,4 +57,4 @@ jobs:
           fi
           git -C ../weekbox-relay-state add -f .relay-state/state.json
           git -C ../weekbox-relay-state commit -m "chore: update relay state" || true
-          git -C ../weekbox-relay-state push origin HEAD:relay-state
+          git -C ../weekbox-relay-state push origin HEAD:refs/heads/relay-state
