@@ -1,0 +1,60 @@
+name: Weekbox Relay
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: weekbox-relay
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Restore relay state
+        shell: bash
+        run: |
+          mkdir -p .relay-state
+          if git fetch origin relay-state:refs/remotes/origin/relay-state 2>/dev/null; then
+            git show origin/relay-state:.relay-state/state.json > .relay-state/state.json
+          fi
+      - run: npm ci
+      - name: Synchronize
+        env:
+          X_AUTH_TOKEN: ${{ secrets.X_AUTH_TOKEN }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: npm run dev
+      - name: Publish relay state
+        shell: bash
+        run: |
+          test -s .relay-state/state.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin relay-state:refs/remotes/origin/relay-state 2>/dev/null || true
+          if git show-ref --verify --quiet refs/remotes/origin/relay-state; then
+            git worktree add --detach ../weekbox-relay-state refs/remotes/origin/relay-state
+          else
+            git worktree add --detach ../weekbox-relay-state "${GITHUB_SHA}"
+          fi
+          if git show origin/relay-state:.relay-state/state.json > ../weekbox-relay-state/.relay-state.remote.json 2>/dev/null; then
+            node -e 'const fs=require("fs");const a=JSON.parse(fs.readFileSync(".relay-state/state.json"));const b=JSON.parse(fs.readFileSync("../weekbox-relay-state/.relay-state.remote.json"));const ids=[...new Set([...a.deliveredTweetIds,...b.deliveredTweetIds])].slice(-5000);a.deliveredTweetIds=ids;a.pendingTweetIds=[...new Set([...a.pendingTweetIds,...b.pendingTweetIds])].filter(x=>!ids.includes(x));fs.mkdirSync("../weekbox-relay-state/.relay-state",{recursive:true});fs.writeFileSync("../weekbox-relay-state/.relay-state/state.json",JSON.stringify(a,null,2)+"\n")'
+          else
+            mkdir -p ../weekbox-relay-state/.relay-state
+            cp .relay-state/state.json ../weekbox-relay-state/.relay-state/state.json
+          fi
+          git -C ../weekbox-relay-state add .relay-state/state.json
+          git -C ../weekbox-relay-state commit -m "chore: update relay state" || true
+          git -C ../weekbox-relay-state push origin HEAD:relay-state
