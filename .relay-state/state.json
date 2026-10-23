@@ -814,9 +814,8 @@
   ],
   "pendingTweetIds": [],
   "source": {
-    "strategy": "list",
-    "lastSeenTweetId": "2113714435315630292"
+    "strategy": "list"
   },
   "baselineInitialized": true,
-  "lastSuccessfulSync": "2026-10-23T19:49:25.368Z"
+  "lastSuccessfulSync": "2026-10-23T22:40:14.633Z"
 }
