@@ -9,7 +9,7 @@ export function discordPostUrl(tweetUrl: string): string {
 export function formatDiscord(post: FeedPost): DiscordPayload {
   return {
     content: `**New post from @${post.author.username}**\n${discordPostUrl(post.tweetUrl)}`,
-    username: "Weekbox: News Feed",
+    username: "WeekBox: News Feed",
     allowed_mentions: { parse: [] },
   };
 }
