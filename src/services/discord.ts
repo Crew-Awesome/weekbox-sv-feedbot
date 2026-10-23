@@ -1,5 +1,8 @@
 import type { DiscordPayload, FeedPost } from "../types.js";
 
+const DISCORD_ROLE_ID = "1562415407518846986";
+const ROLE_PING_ACCOUNTS = new Set(["News_Funkin", "FNF_Developers"]);
+
 export function discordPostUrl(tweetUrl: string): string {
   const url = new URL(tweetUrl);
   if (url.hostname === "x.com") url.hostname = "fixupx.com";
@@ -7,10 +10,11 @@ export function discordPostUrl(tweetUrl: string): string {
 }
 
 export function formatDiscord(post: FeedPost): DiscordPayload {
+  const shouldPingRole = ROLE_PING_ACCOUNTS.has(post.author.username);
   return {
-    content: `**New post from @${post.author.username}**\n${discordPostUrl(post.tweetUrl)}`,
+    content: `${shouldPingRole ? `<@&${DISCORD_ROLE_ID}> ` : ""}**New post from @${post.author.username}**\n${discordPostUrl(post.tweetUrl)}`,
     username: "WeekBox: News Feed",
-    allowed_mentions: { parse: [] },
+    allowed_mentions: { parse: [], roles: shouldPingRole ? [DISCORD_ROLE_ID] : [] },
   };
 }
 

@@ -53,7 +53,7 @@ export type RelayState = {
 export type DiscordPayload = {
   content: string;
   username: string;
-  allowed_mentions: { parse: [] };
+  allowed_mentions: { parse: []; roles: string[] };
 };
 
 export interface FeedProvider {

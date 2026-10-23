@@ -22,10 +22,18 @@ test("orders feed posts chronologically and formats link messages", () => {
   assert.deepEqual(chronological(posts).map((post) => post.id), ["1", "2"]);
   const payload = formatDiscord(posts[0]!);
   assert.equal(payload.allowed_mentions.parse.length, 0);
-  assert.match(payload.content, /\*\*New post from @News_Funkin\*\*\nhttps:\/\/fixupx\.com\//);
+  assert.deepEqual(payload.allowed_mentions.roles, ["1562415407518846986"]);
+  assert.match(payload.content, /<@&1562415407518846986> \*\*New post from @News_Funkin\*\*\nhttps:\/\/fixupx\.com\//);
   assert.equal(payload.content.includes("!"), false);
   assert.equal("embeds" in payload, false);
   assert.equal(discordPostUrl(posts[0]!.tweetUrl), "https://fixupx.com/News_Funkin/status/2");
+
+  const developersPost = formatDiscord(toFeedPost(tweet("3", "FNF_Developers")));
+  assert.deepEqual(developersPost.allowed_mentions.roles, ["1562415407518846986"]);
+
+  const otherAccount = formatDiscord(toFeedPost(tweet("4", "Discussingfnf")));
+  assert.deepEqual(otherAccount.allowed_mentions.roles, []);
+  assert.equal(otherAccount.content.includes("<@&1562415407518846986>"), false);
 });
 
 class MemoryStore implements StateStore {
