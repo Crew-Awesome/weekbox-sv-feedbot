@@ -10,13 +10,15 @@ export async function synchronize(provider: FeedProvider, store: StateStore, sen
   for (let pageNumber = 0; pageNumber < MAX_PAGES; pageNumber++) {
     const page = await provider.fetch(cursor);
     fetched.push(...page.tweets.filter(isEligible).map(toFeedPost));
-    if (!page.nextCursor || page.tweets.length === 0 || (state.lastSuccessfulSync && page.tweets.some((tweet) => tweet.created_at && Date.parse(tweet.created_at) <= Date.parse(state.lastSuccessfulSync!)))) break;
+    if (!page.nextCursor || page.tweets.length === 0 || (state.source.lastSeenTweetId && page.tweets.some((tweet) => tweet.id === state.source.lastSeenTweetId))) break;
     cursor = page.nextCursor;
   }
-  const unique = chronological([...new Map(fetched.map((post) => [post.id, post])).values()]).filter((post) => !state.lastSuccessfulSync || Date.parse(post.createdAt) > Date.parse(state.lastSuccessfulSync));
+  const ordered = chronological([...new Map(fetched.map((post) => [post.id, post])).values()]);
+  const unique = ordered.filter((post) => state.source.lastSeenTweetId || !state.lastSuccessfulSync || Date.parse(post.createdAt) > Date.parse(state.lastSuccessfulSync));
+  const lastSeenTweetId = unique.at(-1)?.id ?? state.source.lastSeenTweetId ?? ordered.findLast((post) => state.deliveredTweetIds.includes(post.id))?.id;
   if (!state.baselineInitialized) {
     state.deliveredTweetIds.push(...unique.map((post) => post.id));
-    state.source = { strategy: "list", ...(unique.at(-1) ? { lastSeenTweetId: unique.at(-1)!.id } : {}) };
+    state.source = { strategy: "list", ...(lastSeenTweetId ? { lastSeenTweetId } : {}) };
     state.baselineInitialized = true;
     state.lastSuccessfulSync = now.toISOString();
     await store.save(state);
@@ -34,7 +36,7 @@ export async function synchronize(provider: FeedProvider, store: StateStore, sen
     deliveredCount++;
     await store.save(state);
   }
-  state.source = { strategy: "list", ...(unique.at(-1) ? { lastSeenTweetId: unique.at(-1)!.id } : {}) };
+  state.source = { strategy: "list", ...(lastSeenTweetId ? { lastSeenTweetId } : {}) };
   state.lastSuccessfulSync = now.toISOString();
   await store.save(state);
   return { delivered: deliveredCount, baseline: false };

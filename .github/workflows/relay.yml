@@ -2,7 +2,7 @@ name: Weekbox Relay
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "2-59/5 * * * *"
   workflow_dispatch:
 
 concurrency:
@@ -38,9 +38,10 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: npm run dev
       - name: Publish relay state
+        if: always()
         shell: bash
         run: |
-          test -s .relay-state/state.json
+          if [ ! -s .relay-state/state.json ]; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin relay-state:refs/remotes/origin/relay-state 2>/dev/null || true
@@ -50,7 +51,7 @@ jobs:
             git worktree add --detach ../weekbox-relay-state "${GITHUB_SHA}"
           fi
           if git show origin/relay-state:.relay-state/state.json > ../weekbox-relay-state/.relay-state.remote.json 2>/dev/null; then
-            node -e 'const fs=require("fs");const a=JSON.parse(fs.readFileSync(".relay-state/state.json"));const b=JSON.parse(fs.readFileSync("../weekbox-relay-state/.relay-state.remote.json"));const ids=[...new Set([...a.deliveredTweetIds,...b.deliveredTweetIds])].slice(-5000);a.deliveredTweetIds=ids;a.pendingTweetIds=[...new Set([...a.pendingTweetIds,...b.pendingTweetIds])].filter(x=>!ids.includes(x));fs.mkdirSync("../weekbox-relay-state/.relay-state",{recursive:true});fs.writeFileSync("../weekbox-relay-state/.relay-state/state.json",JSON.stringify(a,null,2)+"\n")'
+            node -e 'const fs=require("fs");const a=JSON.parse(fs.readFileSync(".relay-state/state.json"));const b=JSON.parse(fs.readFileSync("../weekbox-relay-state/.relay-state.remote.json"));const newer=(a.lastSuccessfulSync??"") >= (b.lastSuccessfulSync??"") ? a : b;const older=(a.lastSuccessfulSync??"") <= (b.lastSuccessfulSync??"") ? a : b;const ids=[...new Set([...b.deliveredTweetIds,...a.deliveredTweetIds])].slice(-5000);const delivered=new Set(ids);const pending=[...new Set([...b.pendingTweetIds,...a.pendingTweetIds])].filter(x=>!delivered.has(x));const boundary=pending.length?older:newer;a.deliveredTweetIds=ids;a.pendingTweetIds=pending;a.source=boundary.source;a.lastSuccessfulSync=boundary.lastSuccessfulSync;a.baselineInitialized=a.baselineInitialized||b.baselineInitialized;fs.mkdirSync("../weekbox-relay-state/.relay-state",{recursive:true});fs.writeFileSync("../weekbox-relay-state/.relay-state/state.json",JSON.stringify(a,null,2)+"\n")'
           else
             mkdir -p ../weekbox-relay-state/.relay-state
             cp .relay-state/state.json ../weekbox-relay-state/.relay-state/state.json

@@ -25,12 +25,17 @@ export function trimState(state: RelayState): RelayState {
 }
 
 export function mergeStates(local: RelayState, remote: RelayState): RelayState {
-  const latestSync = [local.lastSuccessfulSync, remote.lastSuccessfulSync].filter(Boolean).sort().at(-1);
+  const latest = (local.lastSuccessfulSync ?? "") >= (remote.lastSuccessfulSync ?? "") ? local : remote;
+  const deliveredTweetIds = [...new Set([...remote.deliveredTweetIds, ...local.deliveredTweetIds])];
+  const pendingTweetIds = [...new Set([...remote.pendingTweetIds, ...local.pendingTweetIds])].filter((id) => !deliveredTweetIds.includes(id));
+  const boundary = pendingTweetIds.length ? ((local.lastSuccessfulSync ?? "") <= (remote.lastSuccessfulSync ?? "") ? local : remote) : latest;
   return trimState({
     ...remote,
     ...local,
-    deliveredTweetIds: [...new Set([...remote.deliveredTweetIds, ...local.deliveredTweetIds])],
-    pendingTweetIds: [...new Set([...remote.pendingTweetIds, ...local.pendingTweetIds])].filter((id) => !local.deliveredTweetIds.includes(id)),
-    lastSuccessfulSync: latestSync,
+    deliveredTweetIds,
+    pendingTweetIds,
+    source: boundary.source,
+    baselineInitialized: local.baselineInitialized || remote.baselineInitialized,
+    lastSuccessfulSync: boundary.lastSuccessfulSync,
   });
 }

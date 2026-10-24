@@ -67,9 +67,42 @@ test("pagination catches up and leaves failed delivery pending", async () => {
   assert.deepEqual((await store.load())!.pendingTweetIds, ["2"]);
 });
 
+test("uses the last seen tweet instead of the sync timestamp", async () => {
+  const store = new MemoryStore({ version: 1, deliveredTweetIds: ["1"], pendingTweetIds: [], source: { strategy: "list", lastSeenTweetId: "1" }, lastSuccessfulSync: "2026-01-02T00:00:00.000Z", baselineInitialized: true });
+  const provider = new Pages([{ tweets: [tweet("3", "News_Funkin", "2026-01-02T00:02:00Z"), tweet("2", "News_Funkin", "2026-01-01T23:59:59Z"), tweet("1")], nextCursor: "older" }]);
+  const sent: string[] = [];
+
+  const result = await synchronize(provider, store, async (post) => { sent.push(post.id); }, new Date("2026-01-02T00:05:00.000Z"));
+
+  assert.equal(result.delivered, 2);
+  assert.deepEqual(sent, ["2", "3"]);
+  assert.equal((await store.load())!.source.lastSeenTweetId, "3");
+});
+
+test("does not clear the last seen tweet when a run finds nothing", async () => {
+  const store = new MemoryStore({ version: 1, deliveredTweetIds: ["1"], pendingTweetIds: [], source: { strategy: "list", lastSeenTweetId: "1" }, lastSuccessfulSync: "2026-01-01T00:00:00.000Z", baselineInitialized: true });
+  await synchronize(new Pages([{ tweets: [tweet("1")] }]), store, async () => {});
+  assert.equal((await store.load())!.source.lastSeenTweetId, "1");
+});
+
+test("backfills the marker for older state files", async () => {
+  const store = new MemoryStore({ version: 1, deliveredTweetIds: ["1"], pendingTweetIds: [], source: { strategy: "list" }, lastSuccessfulSync: "2026-01-02T00:00:00.000Z", baselineInitialized: true });
+  await synchronize(new Pages([{ tweets: [tweet("1", "News_Funkin", "2026-01-01T00:00:00Z")] }]), store, async () => {});
+  assert.equal((await store.load())!.source.lastSeenTweetId, "1");
+});
+
 test("merges state without losing delivered IDs", () => {
   const base: RelayState = { version: 1, deliveredTweetIds: ["a"], pendingTweetIds: [], source: { strategy: "list" }, baselineInitialized: true };
   assert.deepEqual(mergeStates({ ...base, deliveredTweetIds: ["b"] }, base).deliveredTweetIds.sort(), ["a", "b"]);
+});
+
+test("merges a safe boundary and removes delivered IDs from pending", () => {
+  const remote: RelayState = { version: 1, deliveredTweetIds: ["a"], pendingTweetIds: ["a", "b"], source: { strategy: "list", lastSeenTweetId: "a" }, lastSuccessfulSync: "2026-01-02T00:00:00.000Z", baselineInitialized: true };
+  const local: RelayState = { version: 1, deliveredTweetIds: [], pendingTweetIds: ["c"], source: { strategy: "list", lastSeenTweetId: "old" }, lastSuccessfulSync: "2026-01-01T00:00:00.000Z", baselineInitialized: false };
+  const merged = mergeStates(local, remote);
+  assert.equal(merged.source.lastSeenTweetId, "old");
+  assert.deepEqual(merged.pendingTweetIds.sort(), ["b", "c"]);
+  assert.equal(merged.baselineInitialized, true);
 });
 
 test("normalizes emusks list GraphQL pages", () => {
