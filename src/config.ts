@@ -6,6 +6,7 @@ export const ACCOUNTS = [
   "GameBananaFNF",
   "WeekBoxTeam",
   "DirectMania",
+  "FunkCon24",
 ] as const;
 
 export const LIST_ID = "2113396718679269783";
