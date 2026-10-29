@@ -835,13 +835,14 @@
     "2115248068652343460",
     "2115292471991394709",
     "2115526409598767133",
-    "2115526837954576550"
+    "2115526837954576550",
+    "2115657213184233845"
   ],
   "pendingTweetIds": [],
   "source": {
     "strategy": "list",
-    "lastSeenTweetId": "2115526837954576550"
+    "lastSeenTweetId": "2115657213184233845"
   },
   "baselineInitialized": true,
-  "lastSuccessfulSync": "2026-10-29T00:05:33.227Z"
+  "lastSuccessfulSync": "2026-10-29T05:40:22.507Z"
 }
